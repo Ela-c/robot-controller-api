@@ -1,0 +1,28 @@
+.swagger-ui .info .description > div {
+    font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 520px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid #dbe2ea;
+    background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
+    box-shadow: 0 4px 14px rgba(22, 34, 51, 0.08);
+    color: #1f2a37;
+    margin-top: 8px;
+}
+
+.swagger-ui .info .description > div > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.swagger-ui .info .description > div > div:last-child {
+    margin-bottom: 0;
+}
+
+.swagger-ui .info .description > div > div > strong {
+    min-width: 98px;
+    color: #334155;
+}

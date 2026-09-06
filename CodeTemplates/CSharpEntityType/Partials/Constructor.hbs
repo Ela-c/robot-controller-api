@@ -1,0 +1,21 @@
+﻿{{#if lines}}
+        public {{class}}()
+        {
+{{#each lines}}
+            {{property-name}} = new HashSet<{{property-type}}>
+	();
+	{{/each}}
+	}
+
+	{{/if}}
+
+	public {{class}}()
+	{
+	}
+
+	public {{class}}({{#each properties}}{{property-type}} {{text-to-camelCase property-name}}{{#unless @last}}, {{/unless}}{{/each}})
+	{
+	{{#each properties}}
+		this.{{property-name}} = {{text-to-camelCase property-name}};
+	{{/each}}
+	}
