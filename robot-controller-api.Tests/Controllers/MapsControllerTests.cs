@@ -239,7 +239,7 @@ public class MapsControllerTests
         var repo = new FakeMapRepo { GetByIdFunc = _ => CreateMap(3, "M", 5, 5) };
         var controller = new MapsController(repo);
 
-        var result = controller.CheckCoordintate(3, 0, 1);
+        var result = controller.CheckCoordintate(3, 0, -1);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.False(Assert.IsType<bool>(ok.Value));

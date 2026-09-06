@@ -13,7 +13,7 @@ namespace robot_controller_api.Tests.Services;
 public class RobotSequenceServiceTests
 {
     [Fact]
-    public async Task SubmitSequence_ValidRequest_IsQueued()
+    public async Task SubmitSequence_ValidRequest_IsPending()
     {
         await using var context = BuildContext();
         var queue = new RecordingSequenceQueue();
@@ -26,7 +26,7 @@ public class RobotSequenceServiceTests
             CommandIds = new[] { seed.MoveRightCommandId, seed.MoveRightCommandId, seed.MoveDownCommandId }
         }, CancellationToken.None);
 
-        Assert.Equal(RobotSequenceStatus.Queued, result.Sequence.Status);
+        Assert.Equal(RobotSequenceStatus.Pending, result.Sequence.Status);
         Assert.Equal(1, queue.QueuedIds.Count);
         Assert.Equal(result.Sequence.Id, queue.QueuedIds[0]);
     }
@@ -91,6 +91,9 @@ public class RobotSequenceServiceTests
             CommandIds = new[] { seed.MoveRightCommandId, seed.MoveDownCommandId }
         }, CancellationToken.None);
 
+        var queued = await service.TryQueueExecutionAsync(submitted.Sequence.Id, CancellationToken.None);
+        Assert.NotNull(queued);
+
         var sequence = await service.TryStartExecutionAsync(submitted.Sequence.Id, CancellationToken.None);
         Assert.NotNull(sequence);
 
@@ -98,7 +101,7 @@ public class RobotSequenceServiceTests
             context,
             new RobotMovementService(),
             new NoOpNotifier(),
-            Options.Create(new RobotExecutionOptions { StepDelayMs = 0 }),
+            Options.Create(new RobotExecutionOptions { StepDelayMs = 0, SequenceFailureProbability = 0 }),
             NullLogger<RobotSequenceExecutor>.Instance);
 
         var execution = await executor.ExecuteAsync(sequence!, CancellationToken.None);
