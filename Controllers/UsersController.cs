@@ -146,6 +146,35 @@ namespace robot_controller_api.Controllers
 			return Ok(new { message = "Login successful" });
 		}
 
+		[Authorize]
+		[HttpGet("me")]
+		public IActionResult GetCurrentUser()
+		{
+			var userIdClaim = this.User.FindFirstValue(ClaimTypes.NameIdentifier);
+			if (!int.TryParse(userIdClaim, out var userId))
+			{
+				return Unauthorized();
+			}
+
+			var currentUser = _repo.GetUserById(userId);
+			if (currentUser == null)
+			{
+				return NotFound("User not found");
+			}
+
+			return Ok(new
+			{
+				currentUser.Id,
+				currentUser.Email,
+				currentUser.FirstName,
+				currentUser.LastName,
+				currentUser.Description,
+				currentUser.Role,
+				currentUser.CreatedDate,
+				currentUser.ModifiedDate
+			});
+		}
+
 		[Authorize(Policy = "CatalogRead")]
 		[HttpPost("logout")]
 		public IActionResult Logout()

@@ -23,6 +23,16 @@ namespace robot_controller_api
 
 			builder.Services.AddControllers();
 			builder.Services.AddSignalR();
+			builder.Services.AddCors(options =>
+			{
+				options.AddPolicy("FrontendDev", policy =>
+				{
+					policy.WithOrigins("http://localhost:5173")
+						.AllowAnyHeader()
+						.AllowAnyMethod()
+						.AllowCredentials();
+				});
+			});
 			
             builder.Services.AddDbContext<RobotContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("RobotConnection")));
 
@@ -97,6 +107,8 @@ namespace robot_controller_api
 			builder.Services.AddSwaggerGen();
 
 			var app = builder.Build();
+
+			app.UseCors("FrontendDev");
 
             app.UseAuthentication();
             

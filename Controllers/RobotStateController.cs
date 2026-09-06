@@ -84,7 +84,7 @@ public class RobotStateController : ControllerBase
 
     private int? GetCurrentUserId()
     {
-        var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var value = this.User.FindFirstValue(ClaimTypes.NameIdentifier);
         return int.TryParse(value, out var userId) ? userId : null;
     }
 
