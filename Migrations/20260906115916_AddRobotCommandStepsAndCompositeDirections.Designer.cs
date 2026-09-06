@@ -12,8 +12,8 @@ using robot_controller_api.Persistence;
 namespace robot_controller_api.Migrations
 {
     [DbContext(typeof(RobotContext))]
-    [Migration("20260906091907_AddRobotStateAndSequenceExecution")]
-    partial class AddRobotStateAndSequenceExecution
+    [Migration("20260906115916_AddRobotCommandStepsAndCompositeDirections")]
+    partial class AddRobotCommandStepsAndCompositeDirections
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -39,7 +39,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("columns");
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
                     b.Property<string>("Description")
@@ -54,7 +54,7 @@ namespace robot_controller_api.Migrations
                         .HasComputedColumnSql("((rows > 0) AND (rows = columns))", true);
 
                     b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_date");
 
                     b.Property<string>("Name")
@@ -82,11 +82,11 @@ namespace robot_controller_api.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime?>("CompletedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_date");
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
                     b.Property<string>("Description")
@@ -104,7 +104,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("is_move_command");
 
                     b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_date");
 
                     b.Property<int?>("MovementDirection")
@@ -118,7 +118,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("name");
 
                     b.Property<DateTime?>("StartedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_date");
 
                     b.Property<int>("Status")
@@ -147,11 +147,11 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("cancellation_requested");
 
                     b.Property<DateTime?>("CompletedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("completed_date");
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
                     b.Property<int>("CurrentStep")
@@ -176,7 +176,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("map_id");
 
                     b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_date");
 
                     b.Property<int>("StartX")
@@ -188,7 +188,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("start_y");
 
                     b.Property<DateTime?>("StartedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_date");
 
                     b.Property<int>("Status")
@@ -232,7 +232,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("command_name");
 
                     b.Property<DateTime?>("ExecutedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("executed_date");
 
                     b.Property<bool>("IsExecuted")
@@ -266,6 +266,36 @@ namespace robot_controller_api.Migrations
                     b.ToTable("robot_command_sequence_item", (string)null);
                 });
 
+            modelBuilder.Entity("robot_controller_api.Models.RobotCommandStep", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("MovementDirection")
+                        .HasColumnType("integer")
+                        .HasColumnName("movement_direction");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<int>("RobotCommandId")
+                        .HasColumnType("integer")
+                        .HasColumnName("robot_command_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RobotCommandId", "Order")
+                        .IsUnique()
+                        .HasDatabaseName("ix_robot_command_step_command_order");
+
+                    b.ToTable("robot_command_step", (string)null);
+                });
+
             modelBuilder.Entity("robot_controller_api.Models.RobotState", b =>
                 {
                     b.Property<int>("Id")
@@ -276,7 +306,7 @@ namespace robot_controller_api.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
                     b.Property<int?>("MapId")
@@ -284,7 +314,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("map_id");
 
                     b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_date");
 
                     b.Property<int>("UserId")
@@ -320,7 +350,7 @@ namespace robot_controller_api.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
                     b.Property<string>("Description")
@@ -347,7 +377,7 @@ namespace robot_controller_api.Migrations
                         .HasColumnName("last_name");
 
                     b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_date");
 
                     b.Property<string>("PasswordHash")
@@ -376,19 +406,19 @@ namespace robot_controller_api.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
                     b.Property<DateTime>("ExpiresDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_date");
 
                     b.Property<DateTime?>("LastSeenDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_seen_date");
 
                     b.Property<DateTime?>("RevokedDate")
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("revoked_date");
 
                     b.Property<string>("TokenHash")
@@ -446,6 +476,17 @@ namespace robot_controller_api.Migrations
                     b.Navigation("Sequence");
                 });
 
+            modelBuilder.Entity("robot_controller_api.Models.RobotCommandStep", b =>
+                {
+                    b.HasOne("robot_controller_api.Models.RobotCommand", "RobotCommand")
+                        .WithMany("Steps")
+                        .HasForeignKey("RobotCommandId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RobotCommand");
+                });
+
             modelBuilder.Entity("robot_controller_api.Models.RobotState", b =>
                 {
                     b.HasOne("robot_controller_api.Models.Map", "Map")
@@ -473,6 +514,11 @@ namespace robot_controller_api.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("robot_controller_api.Models.RobotCommand", b =>
+                {
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("robot_controller_api.Models.RobotCommandSequence", b =>

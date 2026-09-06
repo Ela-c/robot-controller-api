@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using robot_controller_api.Persistence;
@@ -11,9 +12,11 @@ using robot_controller_api.Persistence;
 namespace robot_controller_api.Migrations
 {
     [DbContext(typeof(RobotContext))]
-    partial class RobotContextModelSnapshot : ModelSnapshot
+    [Migration("20260906104932_InitialUtcTimestamps")]
+    partial class InitialUtcTimestamps
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -78,6 +81,10 @@ namespace robot_controller_api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CompletedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_date");
+
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
@@ -86,6 +93,11 @@ namespace robot_controller_api.Migrations
                         .HasMaxLength(800)
                         .HasColumnType("character varying(800)")
                         .HasColumnName("description");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(800)
+                        .HasColumnType("character varying(800)")
+                        .HasColumnName("failure_reason");
 
                     b.Property<bool>("IsMoveCommand")
                         .HasColumnType("boolean")
@@ -104,6 +116,14 @@ namespace robot_controller_api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("name");
+
+                    b.Property<DateTime?>("StartedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.HasKey("Id");
 
@@ -244,36 +264,6 @@ namespace robot_controller_api.Migrations
                         .HasDatabaseName("ix_robot_command_sequence_item_sequence_order");
 
                     b.ToTable("robot_command_sequence_item", (string)null);
-                });
-
-            modelBuilder.Entity("robot_controller_api.Models.RobotCommandStep", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("MovementDirection")
-                        .HasColumnType("integer")
-                        .HasColumnName("movement_direction");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer")
-                        .HasColumnName("order");
-
-                    b.Property<int>("RobotCommandId")
-                        .HasColumnType("integer")
-                        .HasColumnName("robot_command_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RobotCommandId", "Order")
-                        .IsUnique()
-                        .HasDatabaseName("ix_robot_command_step_command_order");
-
-                    b.ToTable("robot_command_step", (string)null);
                 });
 
             modelBuilder.Entity("robot_controller_api.Models.RobotState", b =>
@@ -456,17 +446,6 @@ namespace robot_controller_api.Migrations
                     b.Navigation("Sequence");
                 });
 
-            modelBuilder.Entity("robot_controller_api.Models.RobotCommandStep", b =>
-                {
-                    b.HasOne("robot_controller_api.Models.RobotCommand", "RobotCommand")
-                        .WithMany("Steps")
-                        .HasForeignKey("RobotCommandId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("RobotCommand");
-                });
-
             modelBuilder.Entity("robot_controller_api.Models.RobotState", b =>
                 {
                     b.HasOne("robot_controller_api.Models.Map", "Map")
@@ -494,11 +473,6 @@ namespace robot_controller_api.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("robot_controller_api.Models.RobotCommand", b =>
-                {
-                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("robot_controller_api.Models.RobotCommandSequence", b =>
