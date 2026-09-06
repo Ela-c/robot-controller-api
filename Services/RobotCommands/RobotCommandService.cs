@@ -34,6 +34,16 @@ namespace robot_controller_api.Services.RobotCommands
 
             var commandName = request.Name.Trim();
 
+            if (request.IsMoveCommand && request.MovementDirection == null)
+            {
+                throw new ArgumentException("movement direction is required for move commands");
+            }
+
+            if (!request.IsMoveCommand && request.MovementDirection != null)
+            {
+                throw new ArgumentException("movement direction must be null for non-move commands");
+            }
+
             var duplicateExists = await _context.RobotCommands
                 .AnyAsync(command => command.Name == commandName, cancellationToken);
 
@@ -48,6 +58,7 @@ namespace robot_controller_api.Services.RobotCommands
                 Name = commandName,
                 Description = request.Description,
                 IsMoveCommand = request.IsMoveCommand,
+                MovementDirection = request.MovementDirection,
                 Status = RobotCommandStatus.Pending,
                 CreatedDate = now,
                 ModifiedDate = now
@@ -209,6 +220,7 @@ namespace robot_controller_api.Services.RobotCommands
                 Name = command.Name,
                 Description = command.Description,
                 IsMoveCommand = command.IsMoveCommand,
+                MovementDirection = command.MovementDirection,
                 Status = command.Status.ToString(),
                 CreatedDate = command.CreatedDate,
                 StartedDate = command.StartedDate,

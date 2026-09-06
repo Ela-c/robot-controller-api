@@ -129,7 +129,18 @@ namespace robot_controller_api.Controllers
 
 			try
 			{
+				if (command.IsMoveCommand && command.MovementDirection == null)
+				{
+					return BadRequest("movement direction is required for move commands");
+				}
+
+				if (!command.IsMoveCommand && command.MovementDirection != null)
+				{
+					return BadRequest("movement direction must be null for non-move commands");
+				}
+
 				storedCmd.IsMoveCommand = command.IsMoveCommand;
+				storedCmd.MovementDirection = command.MovementDirection;
 				storedCmd.Description = command.Description;
 				storedCmd.Name = command.Name;
 				storedCmd.ModifiedDate = DateTime.UtcNow;

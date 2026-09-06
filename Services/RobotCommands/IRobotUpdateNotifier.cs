@@ -6,4 +6,6 @@ public interface IRobotUpdateNotifier
 {
     Task NotifyCommandUpdatedAsync(RobotCommandUpdateDto update, CancellationToken cancellationToken = default);
     Task NotifyPositionUpdatedAsync(RobotPositionUpdateDto update, CancellationToken cancellationToken = default);
+    Task NotifySequenceUpdatedAsync(RobotSequenceUpdateDto update, CancellationToken cancellationToken = default);
+    Task NotifySequencePositionUpdatedAsync(RobotSequencePositionUpdateDto update, CancellationToken cancellationToken = default);
 }

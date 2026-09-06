@@ -50,4 +50,38 @@ public class SignalRRobotUpdateNotifier : IRobotUpdateNotifier
                 update.CommandId);
         }
     }
+
+    public async Task NotifySequenceUpdatedAsync(RobotSequenceUpdateDto update, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _hubContext.Clients
+                .Group(RobotHubGroups.Sequence(update.SequenceId))
+                .SendAsync(RobotHubEvents.RobotSequenceUpdated, update, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to send sequence update over SignalR for sequence {SequenceId}",
+                update.SequenceId);
+        }
+    }
+
+    public async Task NotifySequencePositionUpdatedAsync(RobotSequencePositionUpdateDto update, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _hubContext.Clients
+                .Group(RobotHubGroups.Sequence(update.SequenceId))
+                .SendAsync(RobotHubEvents.RobotPositionUpdated, update, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to send sequence position update over SignalR for sequence {SequenceId}",
+                update.SequenceId);
+        }
+    }
 }

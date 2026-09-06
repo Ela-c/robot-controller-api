@@ -20,7 +20,8 @@ public class RobotCommandWorkflowTests
         var created = await service.SubmitAsync(new RobotCommandSubmitRequestDto
         {
             Name = "MOVE",
-            IsMoveCommand = true
+            IsMoveCommand = true,
+            MovementDirection = MovementDirection.Right
         }, CancellationToken.None);
 
         Assert.True(created.Id > 0);
@@ -40,7 +41,8 @@ public class RobotCommandWorkflowTests
             var created = await service.SubmitAsync(new RobotCommandSubmitRequestDto
             {
                 Name = "RIGHT",
-                IsMoveCommand = true
+                IsMoveCommand = true,
+                MovementDirection = MovementDirection.Right
             }, CancellationToken.None);
             commandId = created.Id;
         }
@@ -133,7 +135,8 @@ public class RobotCommandWorkflowTests
             var created = await service.SubmitAsync(new RobotCommandSubmitRequestDto
             {
                 Name = "PLACE",
-                IsMoveCommand = true
+                IsMoveCommand = true,
+                MovementDirection = MovementDirection.Up
             }, CancellationToken.None);
 
             commandId = created.Id;
@@ -222,6 +225,12 @@ public class RobotCommandWorkflowTests
             => Task.CompletedTask;
 
         public Task NotifyPositionUpdatedAsync(Dtos.Realtime.RobotPositionUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifySequenceUpdatedAsync(Dtos.Realtime.RobotSequenceUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifySequencePositionUpdatedAsync(Dtos.Realtime.RobotSequencePositionUpdateDto update, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }

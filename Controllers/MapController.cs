@@ -154,7 +154,7 @@ public class MapsController : ControllerBase
 		}
 
 		// check if coordinates are inside map
-		if(x < storedMap.Rows && y < storedMap.Columns && x > 0 && y > 0)
+		if(x < storedMap.Rows && y < storedMap.Columns && x >= 0 && y >= 0)
 		{
 			isOnMap = true;
 		}

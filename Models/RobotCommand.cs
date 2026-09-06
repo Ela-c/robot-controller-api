@@ -11,11 +11,17 @@ namespace robot_controller_api.Models
 	}
 
 	public RobotCommand(int id, string name, string? description, bool isMoveCommand, DateTime createdDate, DateTime modifiedDate)
+		: this(id, name, description, isMoveCommand, null, createdDate, modifiedDate)
+	{
+	}
+
+	public RobotCommand(int id, string name, string? description, bool isMoveCommand, MovementDirection? movementDirection, DateTime createdDate, DateTime modifiedDate)
 	{
 		this.Id = id;
 		this.Name = name;
 		this.Description = description;
 		this.IsMoveCommand = isMoveCommand;
+		this.MovementDirection = movementDirection;
 		this.CreatedDate = createdDate;
 		this.ModifiedDate = modifiedDate;
 		this.Status = RobotCommandStatus.Pending;
@@ -24,6 +30,7 @@ namespace robot_controller_api.Models
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
         public bool IsMoveCommand { get; set; }
+		public MovementDirection? MovementDirection { get; set; }
 		public RobotCommandStatus Status { get; set; } = RobotCommandStatus.Pending;
         public DateTime CreatedDate { get; set; }
 		public DateTime? StartedDate { get; set; }

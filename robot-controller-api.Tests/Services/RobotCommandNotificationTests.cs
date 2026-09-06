@@ -17,7 +17,7 @@ public class RobotCommandNotificationTests
         using var scope = provider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IRobotCommandService>();
 
-        var command = await service.SubmitAsync(new RobotCommandSubmitRequestDto { Name = "MOVE", IsMoveCommand = true }, CancellationToken.None);
+        var command = await service.SubmitAsync(new RobotCommandSubmitRequestDto { Name = "MOVE", IsMoveCommand = true, MovementDirection = MovementDirection.Right }, CancellationToken.None);
 
         var update = Assert.Single(notifier.CommandUpdates);
         Assert.Equal(command.Id, update.CommandId);
@@ -116,6 +116,12 @@ public class RobotCommandNotificationTests
         }
 
         public Task NotifyPositionUpdatedAsync(RobotPositionUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifySequenceUpdatedAsync(RobotSequenceUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifySequencePositionUpdatedAsync(RobotSequencePositionUpdateDto update, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }

@@ -59,5 +59,11 @@ public class RobotCommandExecutorTests
             PositionUpdates.Add(update);
             return Task.CompletedTask;
         }
+
+        public Task NotifySequenceUpdatedAsync(RobotSequenceUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifySequencePositionUpdatedAsync(RobotSequencePositionUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using robot_controller_api.Persistence;
@@ -11,9 +12,11 @@ using robot_controller_api.Persistence;
 namespace robot_controller_api.Migrations
 {
     [DbContext(typeof(RobotContext))]
-    partial class RobotContextModelSnapshot : ModelSnapshot
+    [Migration("20260906091907_AddRobotStateAndSequenceExecution")]
+    partial class AddRobotStateAndSequenceExecution
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
