@@ -8,6 +8,7 @@ public interface IRobotSequenceService
     Task<RobotCommandSequence?> GetByIdForUserAsync(int userId, int sequenceId, CancellationToken cancellationToken);
     Task<List<RobotCommandSequence>> ListForUserAsync(int userId, RobotSequenceStatus? status, CancellationToken cancellationToken);
     Task<RobotCommandSequence> RequestCancelAsync(int userId, int sequenceId, CancellationToken cancellationToken);
+    Task<RobotCommandSequence?> TryQueueExecutionAsync(int sequenceId, CancellationToken cancellationToken);
     Task<RobotCommandSequence?> TryStartExecutionAsync(int sequenceId, CancellationToken cancellationToken);
     Task MarkCompletedAsync(int sequenceId, int finalX, int finalY, CancellationToken cancellationToken);
     Task MarkFailedAsync(int sequenceId, string failureReason, CancellationToken cancellationToken);

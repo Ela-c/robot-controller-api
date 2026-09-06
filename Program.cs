@@ -8,6 +8,7 @@ using robot_controller_api.Services.Robot;
 using robot_controller_api.Services.RobotCommands;
 using Serilog;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 
 namespace robot_controller_api
 {
@@ -21,7 +22,11 @@ namespace robot_controller_api
 			builder.Services.AddSerilog((services, lc) => lc
 				.ReadFrom.Configuration(builder.Configuration));
 
-			builder.Services.AddControllers();
+			builder.Services.AddControllers()
+				.AddJsonOptions(options =>
+				{
+					options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+				});
 			builder.Services.AddSignalR();
 			builder.Services.AddCors(options =>
 			{
@@ -87,16 +92,13 @@ namespace robot_controller_api
             builder.Services.AddScoped<IMapDataAccess, MapEF>();
 			builder.Services.AddScoped<IRobotCommandDataAccess, RobotCommandEF>();
 			builder.Services.AddScoped<IRobotCommandService, RobotCommandService>();
-			builder.Services.AddScoped<IRobotCommandExecutor, RobotCommandExecutor>();
 			builder.Services.AddScoped<IRobotMovementService, RobotMovementService>();
 			builder.Services.AddScoped<IRobotStateService, RobotStateService>();
 			builder.Services.AddScoped<IRobotSequenceService, RobotSequenceService>();
 			builder.Services.AddScoped<IRobotSequenceExecutor, RobotSequenceExecutor>();
 			builder.Services.AddSingleton<IRobotUpdateNotifier, SignalRRobotUpdateNotifier>();
-			builder.Services.AddSingleton<IRobotCommandQueue, RobotCommandQueue>();
 			builder.Services.AddSingleton<IRobotSequenceQueue, RobotSequenceQueue>();
 			builder.Services.Configure<RobotExecutionOptions>(builder.Configuration.GetSection("RobotExecution"));
-			builder.Services.AddHostedService<RobotCommandBackgroundService>();
 			builder.Services.AddHostedService<RobotSequenceBackgroundService>();
             builder.Services.AddScoped<IUserDataAccess, UserEF>();
 			builder.Services.AddScoped<ISessionDataAccess, SessionEF>();

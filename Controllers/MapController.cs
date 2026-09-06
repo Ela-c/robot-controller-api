@@ -57,7 +57,7 @@ public class MapsController : ControllerBase
 		}
 
 		Map newMap = new();
-		var date = DateTime.Now;
+		var date = DateTime.UtcNow;
 		Map? result;
 		try
 		{
@@ -115,7 +115,7 @@ public class MapsController : ControllerBase
 			storedMap.Rows = map.Rows; 
 			storedMap.Name = map.Name;
 			storedMap.Description = map.Description;
-			storedMap.ModifiedDate = DateTime.Now;
+			storedMap.ModifiedDate = DateTime.UtcNow;
 			_mapRepo.UpdateMap(storedMap);
 		}
 		catch (Exception error)

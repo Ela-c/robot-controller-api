@@ -81,7 +81,7 @@ namespace robot_controller_api.Controllers
 				var pwHash = BCrypt.Net.BCrypt.EnhancedHashPassword(user.PasswordHash);
 				newUser.PasswordHash = pwHash;
 
-				var date = DateTime.Now;
+				var date = DateTime.UtcNow;
 				newUser.CreatedDate = date;
 				newUser.ModifiedDate = date;
 				createdUser = _repo.InsertUser(newUser);
@@ -121,7 +121,7 @@ namespace robot_controller_api.Controllers
 				return Unauthorized();
 			}
 
-			var now = DateTime.Now;
+			var now = DateTime.UtcNow;
 			var sessionToken = _sessionTokenService.GenerateToken();
 			var sessionTokenHash = _sessionTokenService.HashToken(sessionToken);
 
@@ -244,7 +244,7 @@ namespace robot_controller_api.Controllers
 				previousUser.LastName = user.LastName;
 				previousUser.Role = user.Role?.ToLower();
 				previousUser.Description = user.Description;
-				previousUser.ModifiedDate = DateTime.Now;
+				previousUser.ModifiedDate = DateTime.UtcNow;
 				_repo.UpdateUser(previousUser);
 			}
 			catch (Exception ex)
@@ -305,7 +305,7 @@ namespace robot_controller_api.Controllers
 			{
 				existingUser.Email = newLoginInfo.Email;
 				existingUser.PasswordHash = pwHash;
-				existingUser.ModifiedDate = DateTime.Now;
+				existingUser.ModifiedDate = DateTime.UtcNow;
 				_repo.UpdateUser(existingUser);
 			}
 			catch (Exception error)

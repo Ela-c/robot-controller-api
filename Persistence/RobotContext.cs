@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using robot_controller_api.Models;
 
 namespace robot_controller_api.Persistence
@@ -10,6 +11,7 @@ namespace robot_controller_api.Persistence
     {
         public virtual DbSet<Map> Maps { get; set; } = null!;
         public virtual DbSet<RobotCommand> RobotCommands { get; set; } = null!;
+        public virtual DbSet<RobotCommandStep> RobotCommandSteps { get; set; } = null!;
         public virtual DbSet<RobotCommandSequence> RobotCommandSequences { get; set; } = null!;
         public virtual DbSet<RobotCommandSequenceItem> RobotCommandSequenceItems { get; set; } = null!;
         public virtual DbSet<RobotState> RobotStates { get; set; } = null!;
@@ -44,7 +46,7 @@ namespace robot_controller_api.Persistence
                 entity.Property(e => e.Columns).HasColumnName("columns");
 
                 entity.Property(e => e.CreatedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_date");
 
                 entity.Property(e => e.Description)
@@ -56,7 +58,7 @@ namespace robot_controller_api.Persistence
                     .HasComputedColumnSql("((rows > 0) AND (rows = columns))", true);
 
                 entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("modified_date");
 
                 entity.Property(e => e.Name)
@@ -79,7 +81,7 @@ namespace robot_controller_api.Persistence
                     .UseIdentityAlwaysColumn();
 
                 entity.Property(e => e.CreatedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_date");
 
                 entity.Property(e => e.Description)
@@ -90,27 +92,42 @@ namespace robot_controller_api.Persistence
 
                 entity.Property(e => e.MovementDirection).HasColumnName("movement_direction");
 
-                entity.Property(e => e.Status).HasColumnName("status");
-
-                entity.Property(e => e.StartedDate)
-                    .HasColumnType("timestamp without time zone")
-                    .HasColumnName("started_date");
-
-                entity.Property(e => e.CompletedDate)
-                    .HasColumnType("timestamp without time zone")
-                    .HasColumnName("completed_date");
-
-                entity.Property(e => e.FailureReason)
-                    .HasMaxLength(800)
-                    .HasColumnName("failure_reason");
-
                 entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("modified_date");
 
                 entity.Property(e => e.Name)
                     .HasMaxLength(50)
                     .HasColumnName("name");
+
+                entity.HasMany(e => e.Steps)
+                    .WithOne(e => e.RobotCommand)
+                    .HasForeignKey(e => e.RobotCommandId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<RobotCommandStep>(entity =>
+            {
+                entity.ToTable("robot_command_step");
+
+                entity.Property(e => e.Id)
+                    .HasColumnName("id")
+                    .UseIdentityAlwaysColumn();
+
+                entity.Property(e => e.RobotCommandId).HasColumnName("robot_command_id");
+
+                entity.Property(e => e.Order).HasColumnName("order");
+
+                entity.Property(e => e.MovementDirection).HasColumnName("movement_direction");
+
+                entity.HasIndex(e => new { e.RobotCommandId, e.Order })
+                    .HasDatabaseName("ix_robot_command_step_command_order")
+                    .IsUnique();
+
+                entity.HasOne(e => e.RobotCommand)
+                    .WithMany(e => e.Steps)
+                    .HasForeignKey(e => e.RobotCommandId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<RobotCommandSequence>(entity =>
@@ -142,19 +159,19 @@ namespace robot_controller_api.Persistence
                 entity.Property(e => e.CancellationRequested).HasColumnName("cancellation_requested");
 
                 entity.Property(e => e.CreatedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_date");
 
                 entity.Property(e => e.StartedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("started_date");
 
                 entity.Property(e => e.CompletedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("completed_date");
 
                 entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("modified_date");
 
                 entity.Property(e => e.FailureReason)
@@ -200,7 +217,7 @@ namespace robot_controller_api.Persistence
                 entity.Property(e => e.IsExecuted).HasColumnName("is_executed");
 
                 entity.Property(e => e.ExecutedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("executed_date");
 
                 entity.Property(e => e.CommandName)
@@ -241,11 +258,11 @@ namespace robot_controller_api.Persistence
                 entity.Property(e => e.Y).HasColumnName("y");
 
                 entity.Property(e => e.CreatedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_date");
 
                 entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("modified_date");
 
                 entity.HasIndex(e => e.UserId)
@@ -272,7 +289,7 @@ namespace robot_controller_api.Persistence
                     .UseIdentityAlwaysColumn();
 
                 entity.Property(e => e.CreatedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_date");
 
                 entity.Property(e => e.Description)
@@ -292,7 +309,7 @@ namespace robot_controller_api.Persistence
                     .HasColumnName("last_name");
 
                 entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("modified_date");
 
                 entity.Property(e => e.PasswordHash)
@@ -320,19 +337,19 @@ namespace robot_controller_api.Persistence
                     .HasColumnName("token_hash");
 
                 entity.Property(e => e.CreatedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("created_date");
 
                 entity.Property(e => e.ExpiresDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("expires_date");
 
                 entity.Property(e => e.RevokedDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("revoked_date");
 
                 entity.Property(e => e.LastSeenDate)
-                    .HasColumnType("timestamp without time zone")
+                    .HasColumnType("timestamp with time zone")
                     .HasColumnName("last_seen_date");
 
                 entity.HasOne(e => e.User)

@@ -6,6 +6,7 @@ namespace robot_controller_api.Services.RobotCommands
     public interface IRobotCommandService
     {
         Task<RobotCommand> SubmitAsync(RobotCommandSubmitRequestDto request, CancellationToken cancellationToken);
+        Task<RobotCommand?> UpdateAsync(int id, RobotCommandSubmitRequestDto request, CancellationToken cancellationToken);
         Task<RobotCommandStatusDto?> GetStatusAsync(int id, CancellationToken cancellationToken);
         Task<RobotCommandCancellationResult> CancelAsync(int id, CancellationToken cancellationToken);
         Task<RobotCommand?> TryStartExecutionAsync(int id, CancellationToken cancellationToken);

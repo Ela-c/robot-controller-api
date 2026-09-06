@@ -16,7 +16,7 @@ namespace robot_controller_api.Persistence
 
         public UserSession? GetActiveSessionByTokenHash(string tokenHash)
         {
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
 
             return _context.UserSessions
                 .Include(session => session.User)
@@ -34,8 +34,8 @@ namespace robot_controller_api.Persistence
                 return false;
             }
 
-            session.RevokedDate = DateTime.Now;
-            session.LastSeenDate = DateTime.Now;
+            session.RevokedDate = DateTime.UtcNow;
+            session.LastSeenDate = DateTime.UtcNow;
             _context.UserSessions.Update(session);
             _context.SaveChanges();
             return true;
@@ -43,7 +43,7 @@ namespace robot_controller_api.Persistence
 
         public int RevokeAllActiveSessionsByUserId(int userId)
         {
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow;
             var activeSessions = _context.UserSessions
                 .Where(existingSession =>
                     existingSession.UserId == userId &&
@@ -75,7 +75,7 @@ namespace robot_controller_api.Persistence
                 return false;
             }
 
-            session.LastSeenDate = DateTime.Now;
+            session.LastSeenDate = DateTime.UtcNow;
             _context.UserSessions.Update(session);
             _context.SaveChanges();
             return true;

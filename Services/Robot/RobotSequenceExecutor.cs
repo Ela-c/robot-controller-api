@@ -9,6 +9,8 @@ namespace robot_controller_api.Services.Robot;
 
 public class RobotSequenceExecutor : IRobotSequenceExecutor
 {
+    private const string RandomFailureReason = "Random execution fault injected for simulation.";
+
     private readonly RobotContext _context;
     private readonly IRobotMovementService _movementService;
     private readonly IRobotUpdateNotifier _robotUpdateNotifier;
@@ -78,6 +80,11 @@ public class RobotSequenceExecutor : IRobotSequenceExecutor
                 continue;
             }
 
+            if (ShouldFailRandomly())
+            {
+                throw new InvalidOperationException($"{RandomFailureReason} Step {item.Order} ({item.CommandName}) was not executed.");
+            }
+
             var next = _movementService.CalculateNextPosition(finalPosition, item.MovementDirection);
             if (!_movementService.IsWithinMap(map, next))
             {
@@ -102,9 +109,10 @@ public class RobotSequenceExecutor : IRobotSequenceExecutor
 
             _logger.LogInformation("Sequence {SequenceId} executed step {Step}/{Total} new position ({X},{Y})", sequence.Id, item.Order, sequence.TotalSteps, next.X, next.Y);
 
-            if (_options.StepDelayMs > 0)
+            var stepDelayMs = GetStepDelayMs();
+            if (stepDelayMs > 0)
             {
-                await Task.Delay(_options.StepDelayMs, cancellationToken);
+                await Task.Delay(stepDelayMs, cancellationToken);
             }
         }
 
@@ -113,6 +121,45 @@ public class RobotSequenceExecutor : IRobotSequenceExecutor
             Cancelled = false,
             FinalPosition = finalPosition
         };
+    }
+
+    private int GetStepDelayMs()
+    {
+        var min = _options.MinStepDelayMs;
+        var max = _options.MaxStepDelayMs;
+
+        if (min > 0 || max > 0)
+        {
+            if (min <= 0)
+            {
+                min = 1;
+            }
+
+            if (max < min)
+            {
+                max = min;
+            }
+
+            return Random.Shared.Next(min, max + 1);
+        }
+
+        return _options.StepDelayMs;
+    }
+
+    private bool ShouldFailRandomly()
+    {
+        var probability = _options.SequenceFailureProbability;
+        if (probability <= 0)
+        {
+            return false;
+        }
+
+        if (probability >= 1)
+        {
+            return true;
+        }
+
+        return Random.Shared.NextDouble() < probability;
     }
 
     private async Task NotifySequencePositionSafeAsync(RobotCommandSequence sequence, int mapId, int x, int y, int step, CancellationToken cancellationToken)

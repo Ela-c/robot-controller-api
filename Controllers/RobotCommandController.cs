@@ -55,7 +55,7 @@ namespace robot_controller_api.Controllers
 
 		[Authorize(Policy = "CatalogWrite")]
 		[HttpPost()]
-		[ProducesResponseType(typeof(RobotCommandSubmissionResponseDto), StatusCodes.Status202Accepted)]
+		[ProducesResponseType(typeof(RobotCommandSubmissionResponseDto), StatusCodes.Status201Created)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status409Conflict)]
 		public async Task<IActionResult> AddRobotCommand(RobotCommandSubmitRequestDto? inputCommand, CancellationToken cancellationToken)
@@ -72,11 +72,10 @@ namespace robot_controller_api.Controllers
 				var response = new RobotCommandSubmissionResponseDto
 				{
 					Id = result.Id,
-					Status = result.Status.ToString(),
-					StatusUrl = $"/api/robot-commands/{result.Id}"
+					CommandUrl = $"/api/robot-commands/{result.Id}"
 				};
 
-				return AcceptedAtRoute("GetRobotCommand", new { id = result.Id }, response);
+				return CreatedAtRoute("GetRobotCommand", new { id = result.Id }, response);
 			}
 			catch (ArgumentException error)
 			{
@@ -97,54 +96,31 @@ namespace robot_controller_api.Controllers
 
 		[Authorize(Policy = "CatalogWrite")]
         [HttpPut("{id:int}")]
-		public IActionResult UpdateRobotCommand(int id, RobotCommand? command)
+		public async Task<IActionResult> UpdateRobotCommand(int id, RobotCommandSubmitRequestDto? command, CancellationToken cancellationToken)
 		{
 			if(command == null)
 			{
 				Log.Information("(update command, action) Error: argument command is null");
                 return BadRequest();
 			}
-			// find command
-			RobotCommand? storedCmd = _robotCommandsRepo.GetRobotCommandById(id);
-			if (storedCmd == null)
-			{
-				return NotFound();
-			}
-
-			if (storedCmd.Status != RobotCommandStatus.Pending && storedCmd.Status != RobotCommandStatus.Queued)
-			{
-				return Conflict("only pending or queued commands can be updated");
-			}
-
-			if(command.Name != storedCmd.Name)
-			{
-				// check if name already exists
-				RobotCommand? commandWithSameName = _robotCommandsRepo.GetRobotCommandByName(command.Name);
-				if(commandWithSameName != null) 
-				{ 
-					Log.Information("(update command, action) Error: new command name already exists => Name: {name}", command.Name);
-					return BadRequest();
-				}
-			}
 
 			try
 			{
-				if (command.IsMoveCommand && command.MovementDirection == null)
+				RobotCommand? updated = await _robotCommandService.UpdateAsync(id, command, cancellationToken);
+				if (updated == null)
 				{
-					return BadRequest("movement direction is required for move commands");
+					return NotFound();
 				}
-
-				if (!command.IsMoveCommand && command.MovementDirection != null)
-				{
-					return BadRequest("movement direction must be null for non-move commands");
-				}
-
-				storedCmd.IsMoveCommand = command.IsMoveCommand;
-				storedCmd.MovementDirection = command.MovementDirection;
-				storedCmd.Description = command.Description;
-				storedCmd.Name = command.Name;
-				storedCmd.ModifiedDate = DateTime.UtcNow;
-				_robotCommandsRepo.UpdateRobotCommand(storedCmd);
+			}
+			catch (ArgumentException error)
+			{
+				Log.Information("(update command, action) Error: {error}", error.Message);
+				return BadRequest(error.Message);
+			}
+			catch (InvalidOperationException error)
+			{
+				Log.Information("(update command, action) Error: {error}", error.Message);
+				return Conflict(error.Message);
 			}
 			catch (Exception error)
 			{
@@ -167,7 +143,7 @@ namespace robot_controller_api.Controllers
 			return result switch
 			{
 				RobotCommandCancellationResult.NotFound => NotFound(),
-				RobotCommandCancellationResult.NotAllowed => Conflict("command cannot be cancelled in its current status"),
+				RobotCommandCancellationResult.NotAllowed => Conflict("command definitions cannot be cancelled"),
 				_ => Ok()
 			};
 		}

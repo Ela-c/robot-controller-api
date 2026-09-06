@@ -44,7 +44,7 @@ public class RobotSequenceService : IRobotSequenceService
         }
 
         var activeExists = await _context.RobotCommandSequences.AnyAsync(
-            s => s.UserId == userId && (s.Status == RobotSequenceStatus.Queued || s.Status == RobotSequenceStatus.Executing),
+            s => s.UserId == userId && (s.Status == RobotSequenceStatus.Pending || s.Status == RobotSequenceStatus.Queued || s.Status == RobotSequenceStatus.Executing),
             cancellationToken);
 
         if (activeExists)
@@ -71,11 +71,13 @@ public class RobotSequenceService : IRobotSequenceService
 
         var distinctIds = request.CommandIds.Distinct().ToList();
         var commands = await _context.RobotCommands
+            .Include(command => command.Steps)
             .Where(command => distinctIds.Contains(command.Id))
             .ToListAsync(cancellationToken);
 
         var commandLookup = commands.ToDictionary(command => command.Id);
-        var orderedCommands = new List<RobotCommand>(request.CommandIds.Count);
+        var expandedSequenceSteps = new List<(int CommandId, string CommandName, MovementDirection Direction)>();
+        var orderedCommands = new List<RobotCommand>();
 
         foreach (var commandId in request.CommandIds)
         {
@@ -89,12 +91,31 @@ public class RobotSequenceService : IRobotSequenceService
                 throw new RobotDomainException(StatusCodes.Status400BadRequest, "Invalid movement sequence", $"Command {command.Name} is not a movement command.");
             }
 
-            if (command.MovementDirection == null)
+            var movementDirections = command.Steps
+                .OrderBy(step => step.Order)
+                .Select(step => step.MovementDirection)
+                .ToList();
+
+            if (movementDirections.Count == 0 && command.MovementDirection.HasValue)
+            {
+                movementDirections.Add(command.MovementDirection.Value);
+            }
+
+            if (movementDirections.Count == 0)
             {
                 throw new RobotDomainException(StatusCodes.Status400BadRequest, "Invalid movement sequence", $"Command {command.Name} has no movement direction.");
             }
 
-            orderedCommands.Add(command);
+            foreach (var movementDirection in movementDirections)
+            {
+                expandedSequenceSteps.Add((command.Id, command.Name, movementDirection));
+                orderedCommands.Add(new RobotCommand
+                {
+                    Name = command.Name,
+                    IsMoveCommand = true,
+                    MovementDirection = movementDirection
+                });
+            }
         }
 
         var start = new RobotPosition(state.X.Value, state.Y.Value);
@@ -124,13 +145,13 @@ public class RobotSequenceService : IRobotSequenceService
         {
             UserId = userId,
             MapId = map.Id,
-            Status = RobotSequenceStatus.Queued,
+            Status = RobotSequenceStatus.Pending,
             StartX = start.X,
             StartY = start.Y,
             FinalX = null,
             FinalY = null,
             CurrentStep = 0,
-            TotalSteps = orderedCommands.Count,
+            TotalSteps = expandedSequenceSteps.Count,
             CancellationRequested = false,
             CreatedDate = now,
             ModifiedDate = now
@@ -139,15 +160,15 @@ public class RobotSequenceService : IRobotSequenceService
         _context.RobotCommandSequences.Add(sequence);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var items = orderedCommands
-            .Select((command, index) => new RobotCommandSequenceItem
+        var items = expandedSequenceSteps
+            .Select((step, index) => new RobotCommandSequenceItem
             {
                 SequenceId = sequence.Id,
-                RobotCommandId = command.Id,
+                RobotCommandId = step.CommandId,
                 Order = index + 1,
                 IsExecuted = false,
-                CommandName = command.Name,
-                MovementDirection = command.MovementDirection!.Value
+                CommandName = step.CommandName,
+                MovementDirection = step.Direction
             })
             .ToList();
 
@@ -164,6 +185,45 @@ public class RobotSequenceService : IRobotSequenceService
             Sequence = sequence,
             PredictedFinalPosition = validation.FinalPosition
         };
+    }
+
+    public async Task<RobotCommandSequence?> TryQueueExecutionAsync(int sequenceId, CancellationToken cancellationToken)
+    {
+        var sequence = await _context.RobotCommandSequences
+            .FirstOrDefaultAsync(s => s.Id == sequenceId, cancellationToken);
+
+        if (sequence == null)
+        {
+            return null;
+        }
+
+        if (sequence.Status == RobotSequenceStatus.Cancelled || sequence.Status == RobotSequenceStatus.Completed || sequence.Status == RobotSequenceStatus.Failed)
+        {
+            return null;
+        }
+
+        if (sequence.CancellationRequested)
+        {
+            sequence.Status = RobotSequenceStatus.Cancelled;
+            sequence.CompletedDate = DateTime.UtcNow;
+            sequence.ModifiedDate = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+            await NotifySequenceUpdateSafeAsync(sequence, cancellationToken);
+            return null;
+        }
+
+        if (sequence.Status != RobotSequenceStatus.Pending)
+        {
+            return null;
+        }
+
+        sequence.Status = RobotSequenceStatus.Queued;
+        sequence.ModifiedDate = DateTime.UtcNow;
+        sequence.FailureReason = null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await NotifySequenceUpdateSafeAsync(sequence, cancellationToken);
+        return sequence;
     }
 
     public async Task<RobotCommandSequence?> GetByIdForUserAsync(int userId, int sequenceId, CancellationToken cancellationToken)

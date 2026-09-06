@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using robot_controller_api.Dtos.Realtime;
 using robot_controller_api.Dtos.RobotCommands;
 using robot_controller_api.Models;
 using robot_controller_api.Persistence;
@@ -9,19 +8,13 @@ namespace robot_controller_api.Services.RobotCommands
     public class RobotCommandService : IRobotCommandService
     {
         private readonly RobotContext _context;
-        private readonly IRobotCommandQueue _queue;
-        private readonly IRobotUpdateNotifier _robotUpdateNotifier;
         private readonly ILogger<RobotCommandService> _logger;
 
         public RobotCommandService(
             RobotContext context,
-            IRobotCommandQueue queue,
-            IRobotUpdateNotifier robotUpdateNotifier,
             ILogger<RobotCommandService> logger)
         {
             _context = context;
-            _queue = queue;
-            _robotUpdateNotifier = robotUpdateNotifier;
             _logger = logger;
         }
 
@@ -34,14 +27,26 @@ namespace robot_controller_api.Services.RobotCommands
 
             var commandName = request.Name.Trim();
 
-            if (request.IsMoveCommand && request.MovementDirection == null)
+            var movementDirections = request.MovementDirections?
+                .Where(direction => Enum.IsDefined(typeof(MovementDirection), direction))
+                .ToList() ?? new List<MovementDirection>();
+
+            if (request.IsMoveCommand)
             {
-                throw new ArgumentException("movement direction is required for move commands");
+                if (movementDirections.Count == 0 && request.MovementDirection != null)
+                {
+                    movementDirections.Add(request.MovementDirection.Value);
+                }
+
+                if (movementDirections.Count == 0)
+                {
+                    throw new ArgumentException("at least one movement direction is required for move commands");
+                }
             }
 
-            if (!request.IsMoveCommand && request.MovementDirection != null)
+            if (!request.IsMoveCommand && (request.MovementDirection != null || movementDirections.Count > 0))
             {
-                throw new ArgumentException("movement direction must be null for non-move commands");
+                throw new ArgumentException("movement directions must be null/empty for non-move commands");
             }
 
             var duplicateExists = await _context.RobotCommands
@@ -58,8 +63,7 @@ namespace robot_controller_api.Services.RobotCommands
                 Name = commandName,
                 Description = request.Description,
                 IsMoveCommand = request.IsMoveCommand,
-                MovementDirection = request.MovementDirection,
-                Status = RobotCommandStatus.Pending,
+                MovementDirection = request.IsMoveCommand ? movementDirections[0] : null,
                 CreatedDate = now,
                 ModifiedDate = now
             };
@@ -67,15 +71,23 @@ namespace robot_controller_api.Services.RobotCommands
             _context.RobotCommands.Add(command);
             await _context.SaveChangesAsync(cancellationToken);
 
-            await _queue.QueueAsync(command.Id, cancellationToken);
+            if (request.IsMoveCommand)
+            {
+                var commandSteps = movementDirections
+                    .Select((direction, index) => new RobotCommandStep
+                    {
+                        RobotCommandId = command.Id,
+                        Order = index + 1,
+                        MovementDirection = direction
+                    })
+                    .ToList();
 
-            command.Status = RobotCommandStatus.Queued;
-            command.ModifiedDate = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
+                _context.RobotCommandSteps.AddRange(commandSteps);
+                await _context.SaveChangesAsync(cancellationToken);
+                command.Steps = commandSteps;
+            }
 
-            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
-
-            _logger.LogInformation("Robot command {CommandId} queued for asynchronous execution", command.Id);
+            _logger.LogInformation("Robot command definition {CommandId} created", command.Id);
             return command;
         }
 
@@ -83,40 +95,16 @@ namespace robot_controller_api.Services.RobotCommands
         {
             var command = await _context.RobotCommands
                 .AsNoTracking()
+                .Include(c => c.Steps)
                 .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
             return command == null ? null : ToStatusDto(command);
         }
 
-        public async Task<RobotCommandCancellationResult> CancelAsync(int id, CancellationToken cancellationToken)
+        public async Task<RobotCommand?> UpdateAsync(int id, RobotCommandSubmitRequestDto request, CancellationToken cancellationToken)
         {
             var command = await _context.RobotCommands
-                .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
-
-            if (command == null)
-            {
-                return RobotCommandCancellationResult.NotFound;
-            }
-
-            if (command.Status != RobotCommandStatus.Pending && command.Status != RobotCommandStatus.Queued)
-            {
-                return RobotCommandCancellationResult.NotAllowed;
-            }
-
-            var now = DateTime.UtcNow;
-            command.Status = RobotCommandStatus.Cancelled;
-            command.ModifiedDate = now;
-            command.CompletedDate = now;
-            command.FailureReason = null;
-
-            await _context.SaveChangesAsync(cancellationToken);
-            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
-            return RobotCommandCancellationResult.Cancelled;
-        }
-
-        public async Task<RobotCommand?> TryStartExecutionAsync(int id, CancellationToken cancellationToken)
-        {
-            var command = await _context.RobotCommands
+                .Include(c => c.Steps)
                 .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
             if (command == null)
@@ -124,96 +112,100 @@ namespace robot_controller_api.Services.RobotCommands
                 return null;
             }
 
-            if (command.Status == RobotCommandStatus.Cancelled ||
-                command.Status == RobotCommandStatus.Completed ||
-                command.Status == RobotCommandStatus.Failed)
+            if (string.IsNullOrWhiteSpace(request.Name))
             {
-                return null;
+                throw new ArgumentException("no command name provided");
             }
 
-            if (command.Status != RobotCommandStatus.Pending && command.Status != RobotCommandStatus.Queued)
+            var commandName = request.Name.Trim();
+            var duplicateExists = await _context.RobotCommands
+                .AnyAsync(existing => existing.Id != id && existing.Name == commandName, cancellationToken);
+            if (duplicateExists)
             {
-                return null;
+                throw new InvalidOperationException("command already exists");
             }
 
-            command.Status = RobotCommandStatus.Executing;
-            command.StartedDate = DateTime.UtcNow;
+            var movementDirections = request.MovementDirections?
+                .Where(direction => Enum.IsDefined(typeof(MovementDirection), direction))
+                .ToList() ?? new List<MovementDirection>();
+
+            if (request.IsMoveCommand)
+            {
+                if (movementDirections.Count == 0 && request.MovementDirection != null)
+                {
+                    movementDirections.Add(request.MovementDirection.Value);
+                }
+
+                if (movementDirections.Count == 0)
+                {
+                    throw new ArgumentException("at least one movement direction is required for move commands");
+                }
+            }
+
+            if (!request.IsMoveCommand && (request.MovementDirection != null || movementDirections.Count > 0))
+            {
+                throw new ArgumentException("movement directions must be null/empty for non-move commands");
+            }
+
+            command.Name = commandName;
+            command.Description = request.Description;
+            command.IsMoveCommand = request.IsMoveCommand;
+            command.MovementDirection = request.IsMoveCommand ? movementDirections[0] : null;
             command.ModifiedDate = DateTime.UtcNow;
-            command.FailureReason = null;
+
+            _context.RobotCommandSteps.RemoveRange(command.Steps);
+            command.Steps.Clear();
+
+            if (request.IsMoveCommand)
+            {
+                var steps = movementDirections.Select((direction, index) => new RobotCommandStep
+                {
+                    RobotCommandId = command.Id,
+                    Order = index + 1,
+                    MovementDirection = direction
+                }).ToList();
+
+                _context.RobotCommandSteps.AddRange(steps);
+                command.Steps = steps;
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
-
-            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
-
             return command;
         }
 
-        public async Task MarkCompletedAsync(int id, CancellationToken cancellationToken)
+        public async Task<RobotCommandCancellationResult> CancelAsync(int id, CancellationToken cancellationToken)
         {
-            var command = await _context.RobotCommands
-                .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
-
-            if (command == null || command.Status == RobotCommandStatus.Cancelled)
-            {
-                return;
-            }
-
-            var now = DateTime.UtcNow;
-            command.Status = RobotCommandStatus.Completed;
-            command.CompletedDate = now;
-            command.ModifiedDate = now;
-            command.FailureReason = null;
-
-            await _context.SaveChangesAsync(cancellationToken);
-            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
+            var exists = await _context.RobotCommands.AnyAsync(c => c.Id == id, cancellationToken);
+            return exists ? RobotCommandCancellationResult.NotAllowed : RobotCommandCancellationResult.NotFound;
         }
 
-        public async Task MarkFailedAsync(int id, string failureReason, CancellationToken cancellationToken)
+        public Task<RobotCommand?> TryStartExecutionAsync(int id, CancellationToken cancellationToken)
         {
-            var command = await _context.RobotCommands
-                .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
-
-            if (command == null || command.Status == RobotCommandStatus.Cancelled)
-            {
-                return;
-            }
-
-            var now = DateTime.UtcNow;
-            command.Status = RobotCommandStatus.Failed;
-            command.FailureReason = failureReason;
-            command.CompletedDate = now;
-            command.ModifiedDate = now;
-
-            await _context.SaveChangesAsync(cancellationToken);
-            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
+            return Task.FromResult<RobotCommand?>(null);
         }
 
-        private async Task NotifyCommandUpdatedSafeAsync(RobotCommand command, CancellationToken cancellationToken)
+        public Task MarkCompletedAsync(int id, CancellationToken cancellationToken)
         {
-            var update = new RobotCommandUpdateDto(
-                command.Id,
-                command.Name,
-                command.Status.ToString(),
-                command.CreatedDate,
-                command.StartedDate,
-                command.CompletedDate,
-                command.ModifiedDate,
-                command.FailureReason);
+            return Task.CompletedTask;
+        }
 
-            try
-            {
-                await _robotUpdateNotifier.NotifyCommandUpdatedAsync(update, cancellationToken);
-            }
-            catch (Exception exception)
-            {
-                _logger.LogWarning(
-                    exception,
-                    "Realtime command update notification failed for command {CommandId}",
-                    command.Id);
-            }
+        public Task MarkFailedAsync(int id, string failureReason, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
         }
 
         private static RobotCommandStatusDto ToStatusDto(RobotCommand command)
         {
+            var movementDirections = command.Steps
+                .OrderBy(step => step.Order)
+                .Select(step => step.MovementDirection)
+                .ToList();
+
+            if (movementDirections.Count == 0 && command.IsMoveCommand && command.MovementDirection.HasValue)
+            {
+                movementDirections.Add(command.MovementDirection.Value);
+            }
+
             return new RobotCommandStatusDto
             {
                 Id = command.Id,
@@ -221,12 +213,9 @@ namespace robot_controller_api.Services.RobotCommands
                 Description = command.Description,
                 IsMoveCommand = command.IsMoveCommand,
                 MovementDirection = command.MovementDirection,
-                Status = command.Status.ToString(),
+                MovementDirections = movementDirections,
                 CreatedDate = command.CreatedDate,
-                StartedDate = command.StartedDate,
-                CompletedDate = command.CompletedDate,
-                ModifiedDate = command.ModifiedDate,
-                FailureReason = command.FailureReason
+                ModifiedDate = command.ModifiedDate
             };
         }
     }

@@ -24,18 +24,14 @@ namespace robot_controller_api.Models
 		this.MovementDirection = movementDirection;
 		this.CreatedDate = createdDate;
 		this.ModifiedDate = modifiedDate;
-		this.Status = RobotCommandStatus.Pending;
 	}
         public int Id { get; set; }
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
         public bool IsMoveCommand { get; set; }
 		public MovementDirection? MovementDirection { get; set; }
-		public RobotCommandStatus Status { get; set; } = RobotCommandStatus.Pending;
+	public ICollection<RobotCommandStep> Steps { get; set; } = new List<RobotCommandStep>();
         public DateTime CreatedDate { get; set; }
-		public DateTime? StartedDate { get; set; }
-		public DateTime? CompletedDate { get; set; }
         public DateTime ModifiedDate { get; set; }
-		public string? FailureReason { get; set; }
     }
 }

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace robot_controller_api.Services.Robot;
 
 public class RobotSequenceBackgroundService : BackgroundService
@@ -5,14 +7,17 @@ public class RobotSequenceBackgroundService : BackgroundService
     private readonly IRobotSequenceQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<RobotSequenceBackgroundService> _logger;
+    private readonly RobotExecutionOptions _options;
 
     public RobotSequenceBackgroundService(
         IRobotSequenceQueue queue,
         IServiceScopeFactory scopeFactory,
+        IOptions<RobotExecutionOptions> options,
         ILogger<RobotSequenceBackgroundService> logger)
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -36,6 +41,25 @@ public class RobotSequenceBackgroundService : BackgroundService
 
             try
             {
+                var pendingDelayMs = GetRandomDelayMs(_options.MinPendingDelayMs, _options.MaxPendingDelayMs);
+                if (pendingDelayMs > 0)
+                {
+                    await Task.Delay(pendingDelayMs, stoppingToken);
+                }
+
+                var queuedSequence = await sequenceService.TryQueueExecutionAsync(sequenceId, stoppingToken);
+                if (queuedSequence == null)
+                {
+                    _logger.LogInformation("Sequence {SequenceId} skipped before queueing because it is no longer executable", sequenceId);
+                    continue;
+                }
+
+                var queuedDelayMs = GetRandomDelayMs(_options.MinQueuedDelayMs, _options.MaxQueuedDelayMs);
+                if (queuedDelayMs > 0)
+                {
+                    await Task.Delay(queuedDelayMs, stoppingToken);
+                }
+
                 var sequence = await sequenceService.TryStartExecutionAsync(sequenceId, stoppingToken);
                 if (sequence == null)
                 {
@@ -66,5 +90,22 @@ public class RobotSequenceBackgroundService : BackgroundService
                 await sequenceService.MarkFailedAsync(sequenceId, failureReason, stoppingToken);
             }
         }
+    }
+
+    private static int GetRandomDelayMs(int minDelayMs, int maxDelayMs)
+    {
+        if (maxDelayMs <= 0)
+        {
+            return 0;
+        }
+
+        var min = Math.Max(0, minDelayMs);
+        var max = Math.Max(min, maxDelayMs);
+        if (max == 0)
+        {
+            return 0;
+        }
+
+        return Random.Shared.Next(min, max + 1);
     }
 }
