@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Robot SignalR Demo</title>
+</head>
+<body>
+    <h2>Robot SignalR Demo</h2>
+
+    <label for="commandId">Command ID:</label>
+    <input id="commandId" type="number" min="1" value="1" />
+    <button id="connect">Connect</button>
+    <button id="subscribe">Subscribe</button>
+    <button id="unsubscribe">Unsubscribe</button>
+
+    <pre id="log"></pre>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script>
+        const logElement = document.getElementById("log");
+        const commandInput = document.getElementById("commandId");
+        const appendLog = (message) => {
+            logElement.textContent += `${new Date().toISOString()} ${message}\n`;
+        };
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/robot")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("RobotCommandUpdated", update => {
+            appendLog(`RobotCommandUpdated: ${JSON.stringify(update)}`);
+        });
+
+        connection.on("RobotPositionUpdated", update => {
+            appendLog(`RobotPositionUpdated: ${JSON.stringify(update)}`);
+        });
+
+        connection.onreconnecting(error => {
+            appendLog(`Reconnecting: ${error?.message ?? "unknown"}`);
+        });
+
+        connection.onreconnected(connectionId => {
+            appendLog(`Reconnected: ${connectionId}`);
+        });
+
+        connection.onclose(error => {
+            appendLog(`Closed: ${error?.message ?? "normal"}`);
+        });
+
+        document.getElementById("connect").addEventListener("click", async () => {
+            try {
+                if (connection.state === signalR.HubConnectionState.Disconnected) {
+                    await connection.start();
+                    appendLog("Connected to /hubs/robot");
+                }
+            } catch (error) {
+                appendLog(`Connect failed: ${error.message}`);
+            }
+        });
+
+        document.getElementById("subscribe").addEventListener("click", async () => {
+            const commandId = Number(commandInput.value);
+            try {
+                await connection.invoke("SubscribeToCommand", commandId);
+                appendLog(`Subscribed to command-${commandId}`);
+            } catch (error) {
+                appendLog(`Subscribe failed: ${error.message}`);
+            }
+        });
+
+        document.getElementById("unsubscribe").addEventListener("click", async () => {
+            const commandId = Number(commandInput.value);
+            try {
+                await connection.invoke("UnsubscribeFromCommand", commandId);
+                appendLog(`Unsubscribed from command-${commandId}`);
+            } catch (error) {
+                appendLog(`Unsubscribe failed: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html>

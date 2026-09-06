@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using robot_controller_api.Dtos.Realtime;
 using robot_controller_api.Dtos.RobotCommands;
 using robot_controller_api.Models;
 using robot_controller_api.Persistence;
@@ -9,12 +10,18 @@ namespace robot_controller_api.Services.RobotCommands
     {
         private readonly RobotContext _context;
         private readonly IRobotCommandQueue _queue;
+        private readonly IRobotUpdateNotifier _robotUpdateNotifier;
         private readonly ILogger<RobotCommandService> _logger;
 
-        public RobotCommandService(RobotContext context, IRobotCommandQueue queue, ILogger<RobotCommandService> logger)
+        public RobotCommandService(
+            RobotContext context,
+            IRobotCommandQueue queue,
+            IRobotUpdateNotifier robotUpdateNotifier,
+            ILogger<RobotCommandService> logger)
         {
             _context = context;
             _queue = queue;
+            _robotUpdateNotifier = robotUpdateNotifier;
             _logger = logger;
         }
 
@@ -55,6 +62,8 @@ namespace robot_controller_api.Services.RobotCommands
             command.ModifiedDate = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
 
+            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
+
             _logger.LogInformation("Robot command {CommandId} queued for asynchronous execution", command.Id);
             return command;
         }
@@ -90,6 +99,7 @@ namespace robot_controller_api.Services.RobotCommands
             command.FailureReason = null;
 
             await _context.SaveChangesAsync(cancellationToken);
+            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
             return RobotCommandCancellationResult.Cancelled;
         }
 
@@ -121,6 +131,8 @@ namespace robot_controller_api.Services.RobotCommands
             command.FailureReason = null;
             await _context.SaveChangesAsync(cancellationToken);
 
+            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
+
             return command;
         }
 
@@ -141,6 +153,7 @@ namespace robot_controller_api.Services.RobotCommands
             command.FailureReason = null;
 
             await _context.SaveChangesAsync(cancellationToken);
+            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
         }
 
         public async Task MarkFailedAsync(int id, string failureReason, CancellationToken cancellationToken)
@@ -160,6 +173,32 @@ namespace robot_controller_api.Services.RobotCommands
             command.ModifiedDate = now;
 
             await _context.SaveChangesAsync(cancellationToken);
+            await NotifyCommandUpdatedSafeAsync(command, cancellationToken);
+        }
+
+        private async Task NotifyCommandUpdatedSafeAsync(RobotCommand command, CancellationToken cancellationToken)
+        {
+            var update = new RobotCommandUpdateDto(
+                command.Id,
+                command.Name,
+                command.Status.ToString(),
+                command.CreatedDate,
+                command.StartedDate,
+                command.CompletedDate,
+                command.ModifiedDate,
+                command.FailureReason);
+
+            try
+            {
+                await _robotUpdateNotifier.NotifyCommandUpdatedAsync(update, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Realtime command update notification failed for command {CommandId}",
+                    command.Id);
+            }
         }
 
         private static RobotCommandStatusDto ToStatusDto(RobotCommand command)

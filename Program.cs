@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Filters;
+using robot_controller_api.Hubs;
 using robot_controller_api.Authentication;
 using robot_controller_api.Persistence;
 using robot_controller_api.Services.RobotCommands;
@@ -20,6 +21,7 @@ namespace robot_controller_api
 				.ReadFrom.Configuration(builder.Configuration));
 
 			builder.Services.AddControllers();
+			builder.Services.AddSignalR();
 			
             builder.Services.AddDbContext<RobotContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("RobotConnection")));
 
@@ -75,6 +77,7 @@ namespace robot_controller_api
 			builder.Services.AddScoped<IRobotCommandDataAccess, RobotCommandEF>();
 			builder.Services.AddScoped<IRobotCommandService, RobotCommandService>();
 			builder.Services.AddScoped<IRobotCommandExecutor, RobotCommandExecutor>();
+			builder.Services.AddSingleton<IRobotUpdateNotifier, SignalRRobotUpdateNotifier>();
 			builder.Services.AddSingleton<IRobotCommandQueue, RobotCommandQueue>();
 			builder.Services.AddHostedService<RobotCommandBackgroundService>();
             builder.Services.AddScoped<IUserDataAccess, UserEF>();
@@ -135,6 +138,7 @@ namespace robot_controller_api
             app.UseHttpsRedirection();
 
 			app.MapControllers();
+			app.MapHub<RobotHub>("/hubs/robot");
 
 			app.Run();
 		}

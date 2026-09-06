@@ -157,6 +157,7 @@ public class RobotCommandWorkflowTests
         services.AddDbContext<RobotContext>(options => options.UseInMemoryDatabase(dbName));
         services.AddScoped<IRobotCommandService, RobotCommandService>();
         services.AddSingleton<IRobotCommandQueue, RobotCommandQueue>();
+        services.AddSingleton<IRobotUpdateNotifier, NoOpNotifier>();
         services.AddScoped<IRobotCommandExecutor>(_ => executor);
 
         return services.BuildServiceProvider();
@@ -213,5 +214,14 @@ public class RobotCommandWorkflowTests
             Failure = exception;
             _release.TrySetResult();
         }
+    }
+
+    private sealed class NoOpNotifier : IRobotUpdateNotifier
+    {
+        public Task NotifyCommandUpdatedAsync(Dtos.Realtime.RobotCommandUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task NotifyPositionUpdatedAsync(Dtos.Realtime.RobotPositionUpdateDto update, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }
